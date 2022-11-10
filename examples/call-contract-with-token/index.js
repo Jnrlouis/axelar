@@ -29,6 +29,9 @@ async function test(chains, wallet, options) {
     const amount = Math.floor(parseFloat(args[2])) * 1e6 || 10e6;
     const accounts = args.slice(3,4);
     const message = args[4];
+    let usdcContract;
+
+    
 
     if (accounts.length === 0) accounts.push(wallet.address);
 
@@ -37,13 +40,14 @@ async function test(chains, wallet, options) {
         chain.wallet = wallet.connect(provider);
         chain.contract = new Contract(chain.distributionExecutable, DistributionExecutable.abi, chain.wallet);
         chain.gateway = new Contract(chain.gateway, Gateway.abi, chain.wallet);
-        const usdcAddress = chain.gateway.tokenAddresses('aUSDC');
+        const usdcAddress = await chain.gateway.tokenAddresses('aUSDC');
         chain.usdc = new Contract(usdcAddress, IERC20.abi, chain.wallet);
+        usdcContract = chain.usdc;
     }
 
     async function logAccountBalances() {
         for (const account of accounts) {
-            console.log(`${account} has ${(await destination.usdc.balanceOf(account)) / 1e6} aUSDC`);
+            console.log(`${account} has ${(await usdcContract.balanceOf(account)) / 1e6} aUSDC`);
         }
     }
 
@@ -58,16 +62,19 @@ async function test(chains, wallet, options) {
     const approveTx = await source.usdc.approve(source.contract.address, amount);
  
     await approveTx.wait();
-
-    const sendTx = await source.contract.sendToMany(destination.name, destination.distributionExecutable, accounts[0], message, 'aUSDC', amount, {
-        value: BigInt(Math.floor(gasLimit * gasPrice)),
-    });
-
+    console.log("Loading...");
+    const sendTx = await source.contract.sendToMany(destination.name, destination.distributionExecutable, accounts[0], message, 'aUSDC', amount,
+        {
+            value: BigInt(5e17)
+        }
+    );
+    console.log("Loading...");
     await sendTx.wait();
 
-    while (BigInt(await destination.usdc.balanceOf(accounts[0])) === balance) {
-        await sleep(2000);
-    }
+    console.log("Loading...");
+    // while (BigInt(await destination.usdc.balanceOf(accounts[0])) === balance) {
+    //     await sleep(2000);
+    // }
 
     console.log('--- After ---');
     await logAccountBalances();
